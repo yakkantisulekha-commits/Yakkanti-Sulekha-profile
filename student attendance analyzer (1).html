@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Student Attendance Analyzer</title>
+<style>
+  :root {
+    --paper: #eef1e4;
+    --sheet: #fbfcf6;
+    --ink: #1d3b31;
+    --pencil: #5d6b63;
+    --rule: #c9d3bf;
+    --red: #c23b2a;
+    --red-bg: #fbe9e4;
+    --ok: #2f7d4f;
+    --ok-bg: #e3f1e6;
+    --serif: Georgia, "Times New Roman", serif;
+    --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--sans);
+    line-height: 1.5;
+  }
+  .wrap { max-width: 980px; margin: 0 auto; padding: 32px 20px 64px; }
+
+  header { margin-bottom: 28px; border-bottom: 3px double var(--ink); padding-bottom: 14px; }
+  h1 { font-family: var(--serif); font-size: clamp(2rem, 5vw, 3.2rem); margin: 0; letter-spacing: -0.01em; }
+  header p { margin: 6px 0 0; color: var(--pencil); max-width: 60ch; }
+
+  .layout { display: grid; grid-template-columns: 300px 1fr; gap: 24px; align-items: start; }
+  @media (max-width: 800px) { .layout { grid-template-columns: 1fr; } }
+
+  .card {
+    background: var(--sheet);
+    border: 1px solid var(--rule);
+    border-radius: 4px;
+    padding: 20px;
+  }
+  h2 { font-family: var(--serif); font-size: 1.25rem; margin: 0 0 14px; }
+
+  label { display: block; font-size: .85rem; font-weight: 600; margin: 12px 0 4px; }
+  input[type=text], input[type=number] {
+    width: 100%; padding: 9px 10px; font: inherit; color: inherit;
+    background: #fff; border: 1px solid var(--rule); border-radius: 3px;
+  }
+  input:focus, button:focus-visible, select:focus {
+    outline: 2px solid var(--ink); outline-offset: 1px;
+  }
+  .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+  button {
+    font: inherit; font-weight: 600; cursor: pointer;
+    padding: 9px 14px; border-radius: 3px;
+    border: 1px solid var(--ink); background: var(--ink); color: #fff;
+  }
+  button:hover { background: #12271f; }
+  button.ghost { background: transparent; color: var(--ink); }
+  button.ghost:hover { background: var(--rule); }
+  button.full { width: 100%; margin-top: 18px; }
+
+  #msg {
+    margin-top: 12px; padding: 9px 11px; border-radius: 3px; font-size: .9rem; display: none;
+  }
+  #msg.error { display: block; background: var(--red-bg); color: var(--red); border: 1px solid var(--red); }
+  #msg.success { display: block; background: var(--ok-bg); color: var(--ok); border: 1px solid var(--ok); }
+
+  .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 20px; }
+  @media (max-width: 560px) { .stats { grid-template-columns: repeat(2, 1fr); } }
+  .stat { background: var(--sheet); border: 1px solid var(--rule); border-radius: 4px; padding: 12px 14px; }
+  .stat b { display: block; font-family: var(--serif); font-size: 1.8rem; line-height: 1.1; }
+  .stat span { font-size: .8rem; color: var(--pencil); }
+  .stat.alert b { color: var(--red); }
+
+  .toolbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 14px; }
+  .toolbar .spacer { flex: 1; }
+  .toolbar select { padding: 8px; font: inherit; border: 1px solid var(--rule); border-radius: 3px; background: #fff; }
+
+  .table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: .95rem; }
+  th, td { text-align: left; padding: 10px 8px; border-bottom: 1px solid var(--rule); }
+  th { font-family: var(--serif); font-weight: 700; border-bottom: 2px solid var(--ink); }
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+  tr.low { background: var(--red-bg); }
+  tr.low td:first-child { box-shadow: inset 4px 0 0 var(--red); }
+
+  .bar { width: 90px; height: 8px; background: var(--rule); border-radius: 4px; overflow: hidden; display: inline-block; vertical-align: middle; margin-right: 8px; }
+  .bar i { display: block; height: 100%; background: var(--ok); }
+  tr.low .bar i { background: var(--red); }
+
+  .tag { font-size: .78rem; font-weight: 700; padding: 2px 8px; border-radius: 10px; }
+  .tag.ok { background: var(--ok-bg); color: var(--ok); }
+  .tag.low { background: var(--red); color: #fff; }
+
+  .del { background: none; border: none; color: var(--pencil); padding: 2px 6px; font-size: 1.1rem; }
+  .del:hover { color: var(--red); background: none; }
+
+  .report { border-left: 4px solid var(--red); }
+  .report p { margin: 6px 0; font-family: var(--serif); font-size: 1.05rem; }
+  .report p.none { color: var(--ok); }
+  .empty { padding: 28px 8px; color: var(--pencil); text-align: center; }
+  .note { font-size: .82rem; color: var(--pencil); margin-top: 14px; }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .bar i { transition: width .4s ease; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Student Attendance Analyzer</h1>
+    <p>Enter attendance, see each student's percentage, and find everyone below 75%. Records save to and load from <code>attendance.txt</code>.</p>
+  </header>
+
+  <div class="layout">
+    <section class="card" aria-labelledby="add-h">
+      <h2 id="add-h">Add a student</h2>
+      <label for="roll">Roll number</label>
+      <input type="text" id="roll" placeholder="e.g. 101" autocomplete="off">
+      <label for="name">Name</label>
+      <input type="text" id="name" placeholder="e.g. Ananya" autocomplete="off">
+      <div class="pair">
+        <div>
+          <label for="total">Total classes</label>
+          <input type="number" id="total" min="1" step="1">
+        </div>
+        <div>
+          <label for="attended">Attended</label>
+          <input type="number" id="attended" min="0" step="1">
+        </div>
+      </div>
+      <button class="full" id="addBtn">Add student</button>
+      <div id="msg" role="status"></div>
+    </section>
+
+    <section aria-labelledby="rec-h">
+      <div class="stats">
+        <div class="stat"><b id="sTotal">0</b><span>Students</span></div>
+        <div class="stat"><b id="sAvg">0%</b><span>Class average</span></div>
+        <div class="stat alert"><b id="sLow">0</b><span>Below 75%</span></div>
+        <div class="stat"><b id="sTop">-</b><span>Highest</span></div>
+      </div>
+
+      <div class="card">
+        <h2 id="rec-h">Attendance records</h2>
+        <div class="toolbar">
+          <select id="filter" aria-label="Filter records">
+            <option value="all">Show all students</option>
+            <option value="low">Only below 75%</option>
+          </select>
+          <span class="spacer"></span>
+          <button class="ghost" id="sampleBtn">Load sample data</button>
+          <button class="ghost" id="clearBtn">Clear all</button>
+          <button class="ghost" id="loadBtn">Load attendance.txt</button>
+          <button id="saveBtn">Save attendance.txt</button>
+          <input type="file" id="fileInput" accept=".txt" hidden>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Roll</th><th>Name</th>
+                <th class="num">Attended</th><th class="num">Total</th>
+                <th>Percentage</th><th>Status</th><th></th>
+              </tr>
+            </thead>
+            <tbody id="rows"></tbody>
+          </table>
+        </div>
+        <div id="empty" class="empty">No students yet. Add one on the left or load a saved file.</div>
+        <p class="note">File format: one student per line as <code>roll,name,total,attended</code></p>
+      </div>
+
+      <div class="card report" style="margin-top:20px">
+        <h2>Students with attendance below 75%</h2>
+        <div id="report"></div>
+      </div>
+    </section>
+  </div>
+</div>
+
+<script>
+  const THRESHOLD = 75;
+  // Sample input from the assignment (loaded on start)
+  let students = [
+    { roll: '101', name: 'Rahul', total: 60, attended: 52 },
+    { roll: '102', name: 'Priya', total: 60, attended: 40 },
+    { roll: '103', name: 'Arjun', total: 60, attended: 55 }
+  ];
+
+  const $ = id => document.getElementById(id);
+
+  function showMsg(text, type) {
+    const m = $('msg');
+    m.textContent = text;
+    m.className = type;
+  }
+
+  // Validation: throws an Error with a clear message on bad input
+  function validate(roll, name, total, attended) {
+    if (!roll) throw new Error('Enter a roll number.');
+    if (!name) throw new Error('Enter the student name.');
+    if (!/^[A-Za-z][A-Za-z .'-]*$/.test(name)) throw new Error('Name can contain letters and spaces only.');
+    if (!Number.isInteger(total) || total <= 0) throw new Error('Total classes must be a whole number above 0.');
+    if (!Number.isInteger(attended) || attended < 0) throw new Error('Attended classes must be a whole number, 0 or more.');
+    if (attended > total) throw new Error('Attended classes cannot be more than total classes.');
+    if (students.some(s => s.roll === roll)) throw new Error('Roll number ' + roll + ' is already in the list.');
+  }
+
+  const pct = s => (s.attended / s.total) * 100;
+
+  function addStudent() {
+    try {
+      const roll = $('roll').value.trim();
+      const name = $('name').value.trim();
+      const total = parseInt($('total').value, 10);
+      const attended = parseInt($('attended').value, 10);
+      validate(roll, name, total, attended);
+      students.push({ roll, name, total, attended });
+      ['roll', 'name', 'total', 'attended'].forEach(i => $(i).value = '');
+      $('roll').focus();
+      showMsg(name + ' added.', 'success');
+      render();
+    } catch (e) {
+      showMsg(e.message, 'error');
+    }
+  }
+
+  function render() {
+    const filter = $('filter').value;
+    const list = students.filter(s => filter === 'all' || pct(s) < THRESHOLD);
+    const tbody = $('rows');
+    tbody.innerHTML = '';
+
+    list.forEach(s => {
+      const p = pct(s);
+      const low = p < THRESHOLD;
+      const tr = document.createElement('tr');
+      if (low) tr.className = 'low';
+      tr.innerHTML =
+        '<td></td><td></td>' +
+        '<td class="num">' + s.attended + '</td><td class="num">' + s.total + '</td>' +
+        '<td><span class="bar"><i style="width:' + p.toFixed(0) + '%"></i></span>' + p.toFixed(2) + '%</td>' +
+        '<td><span class="tag ' + (low ? 'low' : 'ok') + '">' + (low ? 'Shortage' : 'Eligible') + '</span></td>' +
+        '<td><button class="del" title="Remove student" aria-label="Remove ' + s.name.replace(/"/g, '') + '">&times;</button></td>';
+      tr.children[0].textContent = s.roll;   // textContent avoids HTML injection
+      tr.children[1].textContent = s.name;
+      tr.querySelector('.del').onclick = () => {
+        students = students.filter(x => x !== s);
+        render();
+      };
+      tbody.appendChild(tr);
+    });
+
+    $('empty').style.display = list.length ? 'none' : 'block';
+    $('empty').textContent = students.length
+      ? 'Nobody matches this filter.'
+      : 'No students yet. Add one on the left or load a saved file.';
+
+    // summary
+    const lows = students.filter(s => pct(s) < THRESHOLD).length;
+    const avg = students.length ? students.reduce((a, s) => a + pct(s), 0) / students.length : 0;
+    const top = students.length ? students.reduce((a, b) => pct(b) > pct(a) ? b : a) : null;
+    $('sTotal').textContent = students.length;
+    $('sAvg').textContent = avg.toFixed(1) + '%';
+    $('sLow').textContent = lows;
+    $('sTop').textContent = top ? pct(top).toFixed(0) + '%' : '-';
+
+    // report: students below 75%
+    const rep = $('report');
+    rep.innerHTML = '';
+    const defaulters = students.filter(s => pct(s) < THRESHOLD);
+    if (!defaulters.length) {
+      const p = document.createElement('p');
+      p.className = 'none';
+      p.textContent = students.length ? 'Everyone is at 75% or above.' : 'No records to check yet.';
+      rep.appendChild(p);
+    }
+    defaulters.forEach(s => {
+      const p = document.createElement('p');
+      p.textContent = 'Roll Number: ' + s.roll + '   Name: ' + s.name + '   Attendance: ' + pct(s).toFixed(2) + '%';
+      rep.appendChild(p);
+    });
+  }
+
+  const SAMPLE = [
+    { roll: '101', name: 'Rahul', total: 60, attended: 52 },
+    { roll: '102', name: 'Priya', total: 60, attended: 40 },
+    { roll: '103', name: 'Arjun', total: 60, attended: 55 }
+  ];
+
+  $('sampleBtn').onclick = () => {
+    students = SAMPLE.map(s => ({ ...s }));
+    showMsg('Sample data loaded (3 students).', 'success');
+    render();
+  };
+  $('clearBtn').onclick = () => {
+    students = [];
+    showMsg('All records cleared.', 'success');
+    render();
+  };
+
+  // File handling: write attendance.txt
+  function saveFile() {
+    try {
+      if (!students.length) throw new Error('Nothing to save yet. Add a student first.');
+      const text = students.map(s => [s.roll, s.name, s.total, s.attended].join(',')).join('\n');
+      const blob = new Blob([text], { type: 'text/plain' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'attendance.txt';
+      a.click();
+      URL.revokeObjectURL(a.href);
+      showMsg('Saved ' + students.length + ' record(s) to attendance.txt.', 'success');
+    } catch (e) {
+      showMsg(e.message, 'error');
+    }
+  }
+
+  // File handling: read attendance.txt
+  function loadFile(file) {
+    const reader = new FileReader();
+    reader.onerror = () => showMsg('Could not read the file. Try again.', 'error');
+    reader.onload = () => {
+      try {
+        const loaded = [];
+        const lines = reader.result.split(/\r?\n/).filter(l => l.trim());
+        if (!lines.length) throw new Error('The file is empty.');
+        const seen = new Set();
+        lines.forEach((line, i) => {
+          const parts = line.split(',').map(x => x.trim());
+          if (parts.length !== 4) throw new Error('Line ' + (i + 1) + ': expected roll,name,total,attended.');
+          const [roll, name, t, a] = parts;
+          const total = Number(t), attended = Number(a);
+          const saved = students;
+          students = loaded;                    // validate against loaded list only
+          try { validate(roll, name, total, attended); }
+          catch (e) { throw new Error('Line ' + (i + 1) + ': ' + e.message); }
+          finally { students = saved; }
+          loaded.push({ roll, name, total, attended });
+        });
+        students = loaded;
+        showMsg('Loaded ' + loaded.length + ' record(s).', 'success');
+        render();
+      } catch (e) {
+        showMsg(e.message, 'error');
+      }
+    };
+    reader.readAsText(file);
+  }
+
+  $('addBtn').onclick = addStudent;
+  $('saveBtn').onclick = saveFile;
+  $('loadBtn').onclick = () => $('fileInput').click();
+  $('fileInput').onchange = e => {
+    if (e.target.files[0]) loadFile(e.target.files[0]);
+    e.target.value = '';
+  };
+  $('filter').onchange = render;
+  document.querySelectorAll('input').forEach(i =>
+    i.addEventListener('keydown', e => { if (e.key === 'Enter' && i.type !== 'file') addStudent(); }));
+
+  students = SAMPLE.map(s => ({ ...s }));
+  render();
+</script>
+</body>
+</html>
